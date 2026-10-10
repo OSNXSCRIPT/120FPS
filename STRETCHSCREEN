@@ -1,0 +1,242 @@
+-- Resolution Stretch GUI | LocalScript | Roblox
+
+getgenv().Resolution = getgenv().Resolution or { stretch = 0.50 }
+
+local Camera       = workspace.CurrentCamera
+local RunService   = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UIS          = game:GetService("UserInputService")
+local player       = game:GetService("Players").LocalPlayer
+
+-- ── stretch hook (no compounding) ────────────────────────────────────────────
+if not getgenv().gg_scripters then
+    RunService:BindToRenderStep("ResStretch", Enum.RenderPriority.Camera.Value + 1, function()
+        local cf = Camera.CFrame
+        Camera.CFrame = CFrame.fromMatrix(
+            cf.Position,
+            cf.RightVector,
+            Vector3.new(cf.UpVector.X, cf.UpVector.Y * getgenv().Resolution.stretch, cf.UpVector.Z),
+            -cf.LookVector
+        )
+    end)
+end
+
+-- ── helpers ───────────────────────────────────────────────────────────────────
+local function corner(r, p)
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,r); c.Parent = p
+end
+local function gradient(a, b, p)
+    local g = Instance.new("UIGradient")
+    g.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,a), ColorSequenceKeypoint.new(1,b)})
+    g.Parent = p
+end
+local function makeDraggable(obj)
+    local drag, ds, do_ = false, nil, nil
+    obj.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            drag = true; ds = i.Position; do_ = obj.Position
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local d = i.Position - ds
+            obj.Position = UDim2.new(do_.X.Scale, do_.X.Offset+d.X, do_.Y.Scale, do_.Y.Offset+d.Y)
+        end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end
+    end)
+end
+
+-- ── gui root ──────────────────────────────────────────────────────────────────
+local gui = Instance.new("ScreenGui")
+gui.Name           = "ResGUI"
+gui.ResetOnSpawn   = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent         = player:WaitForChild("PlayerGui")
+
+-- ── badge (120 FPS style) ─────────────────────────────────────────────────────
+local badge = Instance.new("TextButton")
+badge.Size             = UDim2.new(0, 46, 0, 46)
+badge.Position         = UDim2.new(1, -62, 0, 14)
+badge.BackgroundColor3 = Color3.fromRGB(130, 30, 170)
+badge.Text             = ""
+badge.BorderSizePixel  = 0
+badge.ZIndex           = 10
+badge.Active           = true
+badge.Parent           = gui
+corner(12, badge)
+gradient(Color3.fromRGB(155, 35, 195), Color3.fromRGB(235, 60, 130), badge)
+
+local bigLbl = Instance.new("TextLabel")
+bigLbl.Size               = UDim2.new(1, 0, 0, 24)
+bigLbl.Position           = UDim2.new(0, 0, 0, 4)
+bigLbl.BackgroundTransparency = 1
+bigLbl.Text               = "120"
+bigLbl.TextColor3         = Color3.fromRGB(255, 255, 255)
+bigLbl.TextSize           = 18
+bigLbl.Font               = Enum.Font.GothamBold
+bigLbl.ZIndex             = 11
+bigLbl.Parent             = badge
+
+local subLbl = Instance.new("TextLabel")
+subLbl.Size               = UDim2.new(1, 0, 0, 14)
+subLbl.Position           = UDim2.new(0, 0, 1, -16)
+subLbl.BackgroundTransparency = 1
+subLbl.Text               = "FPS"
+subLbl.TextColor3         = Color3.fromRGB(255, 210, 235)
+subLbl.TextSize           = 9
+subLbl.Font               = Enum.Font.GothamMedium
+subLbl.ZIndex             = 11
+subLbl.Parent             = badge
+
+makeDraggable(badge)
+
+-- ── main card ─────────────────────────────────────────────────────────────────
+local card = Instance.new("Frame")
+card.Size             = UDim2.new(0, 210, 0, 130)
+card.Position         = UDim2.new(1, -228, 0, 68)
+card.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+card.BorderSizePixel  = 0
+card.Active           = true
+card.Visible          = true
+card.Parent           = gui
+corner(12, card)
+
+badge.MouseButton1Click:Connect(function()
+    card.Visible = not card.Visible
+end)
+
+-- ── top bar ───────────────────────────────────────────────────────────────────
+local bar = Instance.new("Frame")
+bar.Size             = UDim2.new(1, 0, 0, 36)
+bar.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+bar.BorderSizePixel  = 0
+bar.Parent           = card
+corner(12, bar)
+
+local barFill = Instance.new("Frame")
+barFill.Size             = UDim2.new(1,0,0,12)
+barFill.Position         = UDim2.new(0,0,1,-12)
+barFill.BackgroundColor3 = Color3.fromRGB(22,22,28)
+barFill.BorderSizePixel  = 0
+barFill.Parent           = bar
+
+local dimLbl = Instance.new("TextLabel")
+dimLbl.Size               = UDim2.new(1,-38,1,0)
+dimLbl.Position           = UDim2.new(0,12,0,0)
+dimLbl.BackgroundTransparency = 1
+dimLbl.Font               = Enum.Font.GothamMedium
+dimLbl.TextSize           = 13
+dimLbl.TextColor3         = Color3.fromRGB(215,215,230)
+dimLbl.TextXAlignment     = Enum.TextXAlignment.Left
+dimLbl.Parent             = bar
+
+local function refreshDim()
+    local v = Camera.ViewportSize
+    dimLbl.Text = math.floor(v.X) .. "  ×  " .. math.floor(v.Y)
+end
+refreshDim()
+RunService.RenderStepped:Connect(refreshDim)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size             = UDim2.new(0,24,0,24)
+closeBtn.Position         = UDim2.new(1,-30,0,6)
+closeBtn.BackgroundColor3 = Color3.fromRGB(50,18,32)
+closeBtn.Text             = "×"
+closeBtn.TextColor3       = Color3.fromRGB(255,75,125)
+closeBtn.TextSize         = 17
+closeBtn.Font             = Enum.Font.GothamBold
+closeBtn.BorderSizePixel  = 0
+closeBtn.Parent           = bar
+corner(6, closeBtn)
+closeBtn.MouseButton1Click:Connect(function() card.Visible = false end)
+
+makeDraggable(bar)
+
+-- ── stretch label ─────────────────────────────────────────────────────────────
+local strLbl = Instance.new("TextLabel")
+strLbl.Size               = UDim2.new(1,-20,0,14)
+strLbl.Position           = UDim2.new(0,10,0,42)
+strLbl.BackgroundTransparency = 1
+strLbl.Font               = Enum.Font.Gotham
+strLbl.TextSize           = 11
+strLbl.TextColor3         = Color3.fromRGB(140,140,165)
+strLbl.TextXAlignment     = Enum.TextXAlignment.Left
+strLbl.Parent             = card
+
+-- ── slider ────────────────────────────────────────────────────────────────────
+local track = Instance.new("Frame")
+track.Size             = UDim2.new(1,-20,0,10)
+track.Position         = UDim2.new(0,10,0,60)
+track.BackgroundColor3 = Color3.fromRGB(30,30,40)
+track.BorderSizePixel  = 0
+track.Parent           = card
+corner(99, track)
+
+local sliderFill = Instance.new("Frame")
+sliderFill.Size             = UDim2.new(0,0,1,0)
+sliderFill.BackgroundColor3 = Color3.fromRGB(210,55,145)
+sliderFill.BorderSizePixel  = 0
+sliderFill.Parent           = track
+corner(99, sliderFill)
+gradient(Color3.fromRGB(195,45,195), Color3.fromRGB(255,105,60), sliderFill)
+
+local knob = Instance.new("Frame")
+knob.Size             = UDim2.new(0,16,0,16)
+knob.AnchorPoint      = Vector2.new(0.5,0.5)
+knob.BackgroundColor3 = Color3.fromRGB(248,248,255)
+knob.BorderSizePixel  = 0
+knob.ZIndex           = 3
+knob.Parent           = track
+corner(99, knob)
+
+local MIN_S, MAX_S = 0.10, 2.00
+
+local function applyStretch(val)
+    val = math.clamp(val, MIN_S, MAX_S)
+    getgenv().Resolution.stretch = val
+    local pct = (val - MIN_S) / (MAX_S - MIN_S)
+    sliderFill.Size   = UDim2.new(pct, 0, 1, 0)
+    knob.Position     = UDim2.new(pct, 0, 0.5, 0)
+    strLbl.Text       = "Stretch: " .. string.format("%.2f", val)
+end
+applyStretch(getgenv().Resolution.stretch)
+
+local sliding = false
+track.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then sliding = true end
+end)
+UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then sliding = false end
+end)
+UIS.InputChanged:Connect(function(i)
+    if sliding and i.UserInputType == Enum.UserInputType.MouseMovement then
+        local rel = math.clamp(
+            (i.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1
+        )
+        applyStretch(MIN_S + rel * (MAX_S - MIN_S))
+    end
+end)
+
+-- ── reset button ──────────────────────────────────────────────────────────────
+local btn = Instance.new("TextButton")
+btn.Size             = UDim2.new(1,-20,0,26)
+btn.Position         = UDim2.new(0,10,1,-34)
+btn.BackgroundColor3 = Color3.fromRGB(200,50,120)
+btn.Text             = "RESET"
+btn.TextColor3       = Color3.fromRGB(255,255,255)
+btn.TextSize         = 12
+btn.Font             = Enum.Font.GothamBold
+btn.BorderSizePixel  = 0
+btn.Parent           = card
+corner(7, btn)
+gradient(Color3.fromRGB(210,55,170), Color3.fromRGB(255,100,55), btn)
+
+btn.MouseButton1Click:Connect(function() applyStretch(0.50) end)
+btn.MouseEnter:Connect(function()
+    TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundTransparency = 0.25}):Play()
+end)
+btn.MouseLeave:Connect(function()
+    TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundTransparency = 0}):Play()
+end)
